@@ -1,0 +1,22 @@
+/**
+ * Endpoint untuk frontend Vercel.
+ * Tambahkan fungsi ini ke bagian akhir Code.gs yang sudah ada.
+ * Script Property VERCEL_API_SECRET harus sama dengan Vercel GAS_SHARED_SECRET.
+ */
+function doPost(e) {
+  const output = (obj) => ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+  try {
+    const params = e && e.parameter ? e.parameter : {};
+    const expectedSecret = PropertiesService.getScriptProperties().getProperty('VERCEL_API_SECRET');
+    if (!expectedSecret || !params.secret || params.secret !== expectedSecret) {
+      return output({ success: false, message: 'Akses API tidak diizinkan.' });
+    }
+    if (!params.payload) return output({ success: false, message: 'Payload formulir tidak ditemukan.' });
+    const payload = JSON.parse(params.payload);
+    const result = submitResponse(payload);
+    return output({ success: true, message: result.message || 'Respons berhasil disimpan.' });
+  } catch (err) {
+    return output({ success: false, message: err && err.message ? err.message : 'Terjadi kesalahan pada backend.' });
+  }
+}

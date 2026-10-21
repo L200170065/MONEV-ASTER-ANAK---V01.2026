@@ -1,28 +1,38 @@
-# ASTER Monev 2026 — Vercel Wrapper
+ASTER MONEV 2026 — FRONTEND VERCEL + GOOGLE APPS SCRIPT BACKEND
 
-This static Bootstrap 5 page wraps the existing Google Apps Script web app in an iframe so the Vercel URL remains visible in the browser. The actual form and response storage still run on Google Apps Script.
+Isi paket:
+- index.html: frontend statis hasil konversi Index.html yang Anda unggah; tampilan, pertanyaan, navigasi, NIP, dropdown wilayah, validasi, dan modal konfirmasi dipertahankan.
+- api/submit.js: proxy server-side Vercel menuju Google Apps Script.
+- CODE_GS_ADD_DOPOST.txt: fungsi doPost tambahan untuk ditempel ke Code.gs yang ada.
+- package.json, vercel.json, .env.example.
 
-## Deploy to Vercel
-1. Upload these files (`index.html`, `vercel.json`, `README.md`) to a GitHub repository.
-2. In Vercel, choose **Add New → Project**, import that repository, and deploy as a static site. No build command is needed; output directory is the project root.
-3. Use the generated `*.vercel.app` URL, or add a custom domain under **Project → Settings → Domains**.
+PERSIAPAN BACKEND GOOGLE APPS SCRIPT
+1. Buka proyek Apps Script yang sekarang terhubung ke spreadsheet respons.
+2. Tempel isi CODE_GS_ADD_DOPOST.txt di bagian paling bawah Code.gs. Jangan mengganti atau menghapus fungsi lama.
+3. Apps Script > Project Settings > Script properties, tambahkan:
+   VERCEL_API_SECRET = rahasia acak panjang minimal 32 karakter.
+   Gunakan password manager untuk membuatnya. Jangan taruh secret di index.html atau GitHub.
+4. Deploy > Manage deployments > Edit > New version > Deploy sebagai Web app.
+   Execute as: Me.
+   Who has access: sesuai opsi yang diizinkan kebijakan instansi. Endpoint yang diakses Vercel harus dapat menerima permintaan; shared secret memeriksa akses aplikasi.
+5. Salin URL deployment /exec.
 
-## Important: allow iframe embedding in Apps Script
-Google Apps Script may block framing by default. In the Apps Script project's `Code.gs`, the `doGet()` response must explicitly permit framing, for example:
+KONFIGURASI VERCEL
+1. Unggah folder ini ke repository GitHub lalu import repository ke Vercel.
+2. Project Settings > Environment Variables, tambahkan:
+   GAS_WEB_APP_URL = URL Apps Script /exec
+   GAS_SHARED_SECRET = nilai sama dengan VERCEL_API_SECRET
+3. Tambahkan untuk Production (dan Preview jika diperlukan), lalu redeploy.
+4. Buka URL Vercel dan kirim satu respons uji. Pastikan masuk ke sheet Respons Monev ASTER.
 
-```javascript
-function doGet() {
-  return HtmlService.createTemplateFromFile('Index')
-    .evaluate()
-    .setTitle('Monev ASTER 2026')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
-```
+KEAMANAN
+- Secret hanya berada di Vercel server function dan Script Properties, bukan browser.
+- Batasi akses repository/Vercel project dan lindungi akun Google.
+- Web App Apps Script mungkin perlu dapat dipanggil tanpa login untuk menerima request Vercel, tergantung konfigurasi akun/organisasi. Ikuti kebijakan instansi sebelum memilih akses publik.
+- Shared secret adalah kontrol akses untuk endpoint, bukan autentikasi per pengguna. Untuk membatasi berdasarkan akun organisasi, perlu tambahan Google OAuth atau kontrol identitas lain.
+- Frontend mengunci tombol selama pengiriman dan setelah berhasil, tetapi belum menyediakan idempotency key untuk mengatasi dua request server yang simultan.
+- Jangan mencatat NIP atau isi jawaban pada log.
+- Periksa apakah kebijakan instansi mengizinkan frontend pada Vercel, karena instrumen dapat berisi informasi internal.
 
-If the existing `doGet()` already prepares template data or has other logic, **do not replace it wholesale**; add `.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)` to its existing evaluated output. Save and deploy a new Apps Script version after the change.
-
-`ALLOWALL` permits other sites to embed the app, so only use this if intended and reviewed under your organization's security policy. The Vercel wrapper is not an authentication layer. Keep Apps Script access controls and Spreadsheet permissions appropriate for sensitive operational data.
-
-## Limitations
-- This wrapper does not migrate the backend. The form still depends on the existing Apps Script deployment and its availability.
-- If iframe embedding is blocked by Google or organization policy, users can open the direct Apps Script form via the fallback link. To keep the Vercel URL and eliminate iframe restrictions, the frontend/backend must be migrated to a hosting architecture that supports the form submission workflow.
+CATATAN
+Data wilayah dipertahankan dari Index.html yang diunggah. Periksa daftar wilayah master sebelum produksi. Jangan menjalankan setupSpreadsheet() pada spreadsheet respons yang sudah berisi data, karena fungsi tersebut membersihkan sheet.
